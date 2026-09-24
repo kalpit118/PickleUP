@@ -446,3 +446,17 @@ body {
     font-size: 28px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Form input styles (focus states can't be done inline)
+   --------------------------------------------------------------------------- */
+
+input:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15) !important;
+  outline: none;
+}
+
+input::placeholder {
+  color: var(--color-ink-faint);
+}
