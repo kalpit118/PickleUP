@@ -48,11 +48,13 @@ create table if not exists friendships (
   created_at   timestamptz not null default now(),
 
   -- Prevent duplicate relationships in both directions
-  constraint no_self_friendship check (requester_id <> receiver_id),
-  constraint unique_friendship unique (
-    least(requester_id::text, receiver_id::text),
-    greatest(requester_id::text, receiver_id::text)
-  )
+  constraint no_self_friendship check (requester_id <> receiver_id)
+);
+
+-- Unique index to prevent duplicate friendships regardless of who requested it
+create unique index if not exists unique_friendship_idx on friendships (
+  least(requester_id, receiver_id),
+  greatest(requester_id, receiver_id)
 );
 
 alter table friendships enable row level security;
@@ -167,14 +169,7 @@ alter table matches enable row level security;
 create policy "Matches are publicly readable"
   on matches for select using (true);
 
-create policy "Participants can submit their match scores"
-  on matches for update using (
-    exists (
-      select 1 from match_players mp
-      where mp.match_id = matches.id
-        and mp.player_id = auth.uid()
-    )
-  );
+
 
 -- ---------------------------------------------------------------------------
 -- match_players
@@ -194,6 +189,16 @@ create policy "Match players are publicly readable"
 
 create policy "Participants can be added to matches"
   on match_players for insert with check (true); -- RLS on matches enforces ownership
+
+-- matches policy referencing match_players
+create policy "Participants can submit their match scores"
+  on matches for update using (
+    exists (
+      select 1 from match_players mp
+      where mp.match_id = matches.id
+        and mp.player_id = auth.uid()
+    )
+  );
 
 -- ---------------------------------------------------------------------------
 -- tournaments

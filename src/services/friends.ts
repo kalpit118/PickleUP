@@ -52,30 +52,30 @@ export const friendsService = {
   },
 
   /**
-   * Get all friendships for a user (accepted only).
+   * Get all friendships for a user (accepted only) including profile data.
    */
-  async getFriends(userId: UUID): Promise<Friendship[]> {
+  async getFriends(userId: UUID) {
     const { data, error } = await supabase
       .from('friendships')
-      .select('*')
+      .select('*, requester:profiles!requester_id(*), receiver:profiles!receiver_id(*)')
       .or(`requester_id.eq.${userId},receiver_id.eq.${userId}`)
       .eq('status', 'accepted')
 
     if (error) throw error
-    return (data ?? []) as Friendship[]
+    return data ?? []
   },
 
   /**
-   * Get pending incoming requests for a user.
+   * Get pending incoming requests for a user including profile data.
    */
-  async getPendingRequests(userId: UUID): Promise<Friendship[]> {
+  async getPendingRequests(userId: UUID) {
     const { data, error } = await supabase
       .from('friendships')
-      .select('*')
+      .select('*, requester:profiles!requester_id(*), receiver:profiles!receiver_id(*)')
       .eq('receiver_id', userId)
       .eq('status', 'pending')
 
     if (error) throw error
-    return (data ?? []) as Friendship[]
+    return data ?? []
   },
 }

@@ -29,6 +29,7 @@ import NotFoundPage from '@/pages/NotFoundPage'
 // Lazy-loaded pages (code-split per route)
 const ProfileSetupPage = lazy(() => import('@/pages/ProfileSetupPage'))
 const ProfilePage      = lazy(() => import('@/pages/ProfilePage'))
+const FriendsPage      = lazy(() => import('@/pages/FriendsPage'))
 
 // Minimal suspense fallback — full-page centering, matches canvas background
 function PageLoader() {
@@ -130,7 +131,7 @@ export default function App() {
           <Route path="/games" element={<ComingSoonPage title="Games" />} />
           <Route path="/games/:id" element={<ComingSoonPage title="Game" />} />
           <Route path="/tournaments" element={<ComingSoonPage title="Tournaments" />} />
-          <Route path="/friends" element={<ComingSoonPage title="Friends" />} />
+          <Route path="/friends" element={<FriendsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/:id" element={<ProfilePage />} />
         </Route>

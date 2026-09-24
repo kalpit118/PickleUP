@@ -22,7 +22,7 @@ const NAV_ITEMS = [
 ] as const
 
 export default function AppLayout() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100svh' }}>
@@ -113,7 +113,7 @@ export default function AppLayout() {
               }}
               aria-label="Your profile"
             >
-              {user.email?.[0]?.toUpperCase() ?? 'P'}
+              {profile?.name?.[0]?.toUpperCase() ?? user.email?.[0]?.toUpperCase() ?? 'P'}
             </Link>
           ) : (
             <Link
