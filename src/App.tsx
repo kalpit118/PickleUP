@@ -30,6 +30,9 @@ import NotFoundPage from '@/pages/NotFoundPage'
 const ProfileSetupPage = lazy(() => import('@/pages/ProfileSetupPage'))
 const ProfilePage      = lazy(() => import('@/pages/ProfilePage'))
 const FriendsPage      = lazy(() => import('@/pages/FriendsPage'))
+const RecordMatchPage  = lazy(() => import('@/pages/RecordMatchPage'))
+const AnalyticsPage    = lazy(() => import('@/pages/AnalyticsPage'))
+const ActivityFeedPage = lazy(() => import('@/pages/ActivityFeedPage'))
 
 // Minimal suspense fallback — full-page centering, matches canvas background
 function PageLoader() {
@@ -43,9 +46,7 @@ function PageLoader() {
         background: 'var(--color-canvas)',
       }}
     >
-      <span className="text-body" style={{ color: 'var(--color-ink-muted)' }}>
-        Loading…
-      </span>
+      <div className="loader"></div>
     </div>
   )
 }
@@ -128,10 +129,13 @@ export default function App() {
           }
         >
           <Route path="/" element={<HomePage />} />
+          <Route path="/matches/new" element={<RecordMatchPage />} />
           <Route path="/games" element={<ComingSoonPage title="Games" />} />
           <Route path="/games/:id" element={<ComingSoonPage title="Game" />} />
           <Route path="/tournaments" element={<ComingSoonPage title="Tournaments" />} />
           <Route path="/friends" element={<FriendsPage />} />
+          <Route path="/feed" element={<ActivityFeedPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/:id" element={<ProfilePage />} />
         </Route>

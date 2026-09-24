@@ -103,8 +103,8 @@ export default function FriendsPage() {
 
   if (loading) {
     return (
-      <main style={styles.container}>
-        <p className="text-body text-ink-muted">Loading friends...</p>
+      <main style={{ ...styles.container, display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
+        <div className="loader"></div>
       </main>
     )
   }

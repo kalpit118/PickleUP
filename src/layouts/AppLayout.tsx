@@ -15,8 +15,8 @@ import { useAuth } from '@/hooks/useAuth'
 // Nav items for authenticated users
 const NAV_ITEMS = [
   { to: '/', label: 'Home', id: 'nav-home' },
-  { to: '/games', label: 'Games', id: 'nav-games' },
-  { to: '/tournaments', label: 'Tournaments', id: 'nav-tournaments' },
+  { to: '/feed', label: 'Feed', id: 'nav-feed' },
+  { to: '/analytics', label: 'Analytics', id: 'nav-analytics' },
   { to: '/friends', label: 'Friends', id: 'nav-friends' },
   { to: '/profile', label: 'Profile', id: 'nav-profile' },
 ] as const
@@ -204,8 +204,8 @@ export default function AppLayout() {
 function navIcon(to: string): string {
   switch (to) {
     case '/': return '🏠'
-    case '/games': return '🏓'
-    case '/tournaments': return '🏆'
+    case '/feed': return '⚡'
+    case '/analytics': return '📈'
     case '/friends': return '👥'
     case '/profile': return '👤'
     default: return '•'

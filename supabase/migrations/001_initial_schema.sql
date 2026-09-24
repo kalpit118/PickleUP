@@ -169,6 +169,9 @@ alter table matches enable row level security;
 create policy "Matches are publicly readable"
   on matches for select using (true);
 
+create policy "Authenticated users can create matches"
+  on matches for insert with check (auth.role() = 'authenticated');
+
 
 
 -- ---------------------------------------------------------------------------

@@ -14,7 +14,7 @@ export const matchesService = {
   /**
    * Create a new match in DRAFT state.
    */
-  async createMatch(match: Omit<Match, 'id' | 'status' | 'verified_at' | 'created_at'>): Promise<Match> {
+  async createMatch(match: Partial<Omit<Match, 'id' | 'status' | 'verified_at' | 'created_at'>>): Promise<Match> {
     const { data, error } = await supabase
       .from('matches')
       .insert({ ...match, status: 'draft' as MatchStatus })
@@ -53,6 +53,17 @@ export const matchesService = {
   },
 
   /**
+   * Add players to a match.
+   */
+  async addMatchPlayers(players: Omit<MatchPlayer, 'id' | 'created_at'>[]): Promise<void> {
+    const { error } = await supabase
+      .from('match_players')
+      .insert(players)
+
+    if (error) throw error
+  },
+
+  /**
    * Submit a score. Transitions match from DRAFT → SUBMITTED.
    */
   async submitScore(matchId: UUID, scoreTeamA: number, scoreTeamB: number, submittedBy: UUID): Promise<Match> {
@@ -82,6 +93,27 @@ export const matchesService = {
       .update({ status: 'pending_confirmation' as MatchStatus })
       .eq('id', matchId)
       .eq('status', 'submitted') // Guard: only transition from SUBMITTED
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as Match
+  },
+
+  /**
+   * Verify a match. Transitions to VERIFIED and sets verified_at timestamp.
+   * This is where rating changes should be calculated.
+   */
+  async verifyMatch(matchId: UUID): Promise<Match> {
+    const { data, error } = await supabase
+      .from('matches')
+      .update({ 
+        status: 'verified' as MatchStatus,
+        verified_at: new Date().toISOString()
+      })
+      .eq('id', matchId)
+      // can transition from pending_confirmation or submitted
+      .in('status', ['submitted', 'pending_confirmation']) 
       .select()
       .single()
 

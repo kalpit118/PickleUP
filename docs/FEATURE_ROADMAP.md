@@ -69,7 +69,3 @@
 - Shareable player cards
 - Club dashboard
 
-## Phase 7 — Optional Native Packaging
-
-- Android APK using Capacitor or equivalent
-- Native iOS app only if there is a demonstrated product need and budget
