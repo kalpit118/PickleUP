@@ -3,7 +3,6 @@
  * Shows a global feed of recent matches across the platform.
  */
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 
 export default function ActivityFeedPage() {

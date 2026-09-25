@@ -316,7 +316,6 @@ export default function AppLayout() {
                         {/* ── Match Confirmation Notifications ────────── */}
                         {pendingMatchConfs.map(conf => {
                           const isLoading = matchActionLoading === conf.id
-                          const match = conf.matches
                           return (
                             <li
                               key={conf.id}
