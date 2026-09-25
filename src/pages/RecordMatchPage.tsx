@@ -13,6 +13,9 @@ export default function RecordMatchPage() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
 
+  // Mode selection — null means show the picker first
+  const [mode, setMode] = useState<'past' | 'live' | null>(null)
+
   const [friends, setFriends] = useState<Profile[]>([])
   
   // Form State
@@ -109,11 +112,102 @@ export default function RecordMatchPage() {
     }
   }
 
+  // ── Mode picker ─────────────────────────────────────────────────────────────
+  if (mode === null) {
+    return (
+      <main style={styles.container}>
+        <header style={styles.header}>
+          <button
+            onClick={() => navigate(-1)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-ink-muted)', fontSize: 14, marginBottom: 8, padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            ← Back
+          </button>
+          <h1 className="text-display-md">What would you like to do?</h1>
+          <p className="text-body text-ink-muted" style={{ marginTop: 4 }}>Choose how you want to log this match.</p>
+        </header>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Option 1 — Submit Past Score */}
+          <button
+            id="mode-past-score"
+            type="button"
+            onClick={() => setMode('past')}
+            style={styles.modeCard}
+          >
+            <div style={styles.modeIcon}>📋</div>
+            <div style={styles.modeText}>
+              <div style={styles.modeTitle}>Submit a Completed Score</div>
+              <div style={styles.modeSub}>Already played? Enter the final score and who played. Your opponents will be asked to confirm.</div>
+            </div>
+            <div style={styles.modeChevron}>›</div>
+          </button>
+
+          {/* Option 2 — Live Match (Coming Soon) */}
+          <button
+            id="mode-live-match"
+            type="button"
+            onClick={() => setMode('live')}
+            style={{ ...styles.modeCard, opacity: 0.7 }}
+          >
+            <div style={styles.modeIcon}>🎾</div>
+            <div style={styles.modeText}>
+              <div style={styles.modeTitle}>
+                Track a Live Match
+                <span style={styles.comingSoonBadge}>Coming Soon</span>
+              </div>
+              <div style={styles.modeSub}>Score rally by rally in real time. Works great courtside from your phone.</div>
+            </div>
+            <div style={styles.modeChevron}>›</div>
+          </button>
+        </div>
+      </main>
+    )
+  }
+
+  // ── Live Match — Coming Soon ─────────────────────────────────────────────────
+  if (mode === 'live') {
+    return (
+      <main style={styles.container}>
+        <header style={styles.header}>
+          <button
+            onClick={() => setMode(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-ink-muted)', fontSize: 14, marginBottom: 8, padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            ← Back
+          </button>
+          <h1 className="text-display-md">Track a Live Match</h1>
+        </header>
+        <div className="card" style={{ padding: 40, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🎾</div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Live Scoring Coming Soon</h2>
+          <p className="text-body text-ink-muted">
+            Real-time rally-by-rally scoring is on the roadmap. Check back soon — it's going to be great courtside!
+          </p>
+          <button
+            onClick={() => setMode('past')}
+            className="btn-primary"
+            style={{ marginTop: 24 }}
+          >
+            Submit a Completed Score instead
+          </button>
+        </div>
+      </main>
+    )
+  }
+
+  // ── Submit Past Score form ────────────────────────────────────────────────────
   return (
     <main style={styles.container}>
       <header style={styles.header}>
-        <h1 className="text-display-md">Record Match</h1>
-        <p className="text-body text-ink-muted">Enter the score and select the players.</p>
+        <button
+          onClick={() => setMode(null)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-ink-muted)', fontSize: 14, marginBottom: 8, padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+        >
+          ← Back
+        </button>
+        <h1 className="text-display-md">Submit a Completed Score</h1>
+        <p className="text-body text-ink-muted">Enter the final score and who played. Your opponents will confirm.</p>
       </header>
 
       {error && (
@@ -372,5 +466,69 @@ const styles = {
     background: 'var(--color-canvas)',
     border: '1px solid var(--color-border-strong)',
     borderRadius: 'var(--radius-lg)',
+  } as React.CSSProperties,
+
+  // ── Mode picker ──────────────────────────────────────────────────────────────
+  modeCard: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+    padding: '20px 20px',
+    background: 'var(--color-surface)',
+    border: '1.5px solid var(--color-border)',
+    borderRadius: 16,
+    cursor: 'pointer',
+    textAlign: 'left',
+    transition: 'border-color 0.15s, box-shadow 0.15s',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+  } as React.CSSProperties,
+
+  modeIcon: {
+    fontSize: 36,
+    lineHeight: 1,
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  modeText: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  } as React.CSSProperties,
+
+  modeTitle: {
+    fontFamily: 'var(--font-display)',
+    fontSize: 16,
+    fontWeight: 600,
+    color: 'var(--color-ink)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  } as React.CSSProperties,
+
+  modeSub: {
+    fontFamily: 'var(--font-body)',
+    fontSize: 13,
+    color: 'var(--color-ink-muted)',
+    lineHeight: 1.5,
+  } as React.CSSProperties,
+
+  modeChevron: {
+    fontSize: 24,
+    color: 'var(--color-ink-faint)',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  comingSoonBadge: {
+    fontSize: 10,
+    fontWeight: 700,
+    fontFamily: 'var(--font-body)',
+    color: 'var(--color-orange)',
+    background: 'var(--color-orange-soft)',
+    padding: '2px 7px',
+    borderRadius: 999,
+    letterSpacing: 0.3,
   } as React.CSSProperties,
 }
