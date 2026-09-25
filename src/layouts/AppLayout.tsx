@@ -44,6 +44,7 @@ export default function AppLayout() {
 
   const hasUnread = pendingRequests.length > 0
 
+  // Load pending friend requests
   const loadNotifications = () => {
     if (!user) return
     friendsService.getPendingRequests(user.id)
@@ -53,6 +54,7 @@ export default function AppLayout() {
 
   useEffect(() => {
     loadNotifications()
+    // Refresh every 30 seconds while the app is open
     const interval = setInterval(loadNotifications, 30_000)
     return () => clearInterval(interval)
   }, [user])
@@ -128,7 +130,12 @@ export default function AppLayout() {
         <nav
           role="navigation"
           aria-label="Main navigation"
-          style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xl)', flex: 1 }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--spacing-xl)',
+            flex: 1,
+          }}
           className="desktop-nav"
         >
           {NAV_ITEMS.map(({ to, label, id }) => (
@@ -153,7 +160,7 @@ export default function AppLayout() {
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           {user ? (
             <>
-              {/* ── Notification Bell + Dropdown Panel ────────────────── */}
+              {/* Notification Bell + Panel */}
               <div ref={bellRef} style={{ position: 'relative' }}>
                 <button
                   id="nav-notifications-bell"
@@ -166,7 +173,7 @@ export default function AppLayout() {
                     background: panelOpen ? 'rgba(255,255,255,0.08)' : 'transparent',
                     border: 'none',
                     borderRadius: '50%',
-                    color: 'rgba(255,255,255,0.8)',
+                    color: 'rgba(255,255,255,0.72)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -175,7 +182,6 @@ export default function AppLayout() {
                   aria-label="Notifications"
                   aria-expanded={panelOpen}
                 >
-                  {/* Bell SVG */}
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -191,9 +197,10 @@ export default function AppLayout() {
                     />
                   </svg>
 
-                  {/* Pulsing red dot — only when unread */}
+                  {/* Red dot — only when there are unread notifications */}
                   {hasUnread && (
                     <span
+                      aria-label="Unread notifications"
                       style={{
                         position: 'absolute',
                         top: 5,
@@ -209,7 +216,9 @@ export default function AppLayout() {
                   )}
                 </button>
 
-                {/* ── Notification Panel Dropdown ─────────────────────── */}
+                {/* ---------------------------------------------------- */}
+                {/* Notification Panel Dropdown                            */}
+                {/* ---------------------------------------------------- */}
                 {panelOpen && (
                   <div
                     id="notification-panel"
@@ -243,13 +252,22 @@ export default function AppLayout() {
                         Notifications
                       </span>
                       {hasUnread && (
-                        <span style={{ fontSize: 11, fontWeight: 600, color: 'white', background: '#EF4444', borderRadius: 999, padding: '2px 7px' }}>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: 'white',
+                            background: '#EF4444',
+                            borderRadius: 999,
+                            padding: '2px 7px',
+                          }}
+                        >
                           {pendingRequests.length} new
                         </span>
                       )}
                     </div>
 
-                    {/* Empty state */}
+                    {/* Notification items */}
                     {pendingRequests.length === 0 ? (
                       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
                         <div style={{ fontSize: 32, marginBottom: 10 }}>🔔</div>
@@ -274,17 +292,28 @@ export default function AppLayout() {
                                 background: 'var(--color-surface-soft)',
                               }}
                             >
-                              {/* Avatar + message + time */}
+                              {/* Row 1: avatar + text + time */}
                               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                                <div style={{
-                                  width: 38, height: 38, borderRadius: '50%',
-                                  backgroundColor: 'var(--color-primary-soft)',
-                                  color: 'var(--color-primary)',
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  fontSize: 15, fontWeight: 700, flexShrink: 0,
-                                }}>
+                                {/* Avatar */}
+                                <div
+                                  style={{
+                                    width: 38,
+                                    height: 38,
+                                    borderRadius: '50%',
+                                    backgroundColor: 'var(--color-primary-soft)',
+                                    color: 'var(--color-primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 15,
+                                    fontWeight: 700,
+                                    flexShrink: 0,
+                                  }}
+                                >
                                   {sender?.name?.[0]?.toUpperCase() ?? '?'}
                                 </div>
+
+                                {/* Text */}
                                 <div style={{ flex: 1 }}>
                                   <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--color-ink)', lineHeight: 1.4 }}>
                                     <strong>{sender?.name ?? 'Someone'}</strong> sent you a friend request
@@ -295,16 +324,24 @@ export default function AppLayout() {
                                 </div>
                               </div>
 
-                              {/* Accept / Reject */}
+                              {/* Row 2: Accept / Reject buttons */}
                               <div style={{ display: 'flex', gap: 8 }}>
                                 <button
                                   onClick={() => handleAccept(req.id)}
                                   disabled={isLoading}
                                   style={{
-                                    flex: 1, padding: '7px 0', borderRadius: 999, border: 'none',
-                                    background: 'var(--color-primary)', color: 'white',
-                                    fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
-                                    cursor: isLoading ? 'wait' : 'pointer', opacity: isLoading ? 0.6 : 1,
+                                    flex: 1,
+                                    padding: '7px 0',
+                                    borderRadius: 999,
+                                    border: 'none',
+                                    background: 'var(--color-primary)',
+                                    color: 'white',
+                                    fontFamily: 'var(--font-body)',
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    cursor: isLoading ? 'wait' : 'pointer',
+                                    opacity: isLoading ? 0.6 : 1,
+                                    transition: 'opacity 0.15s',
                                   }}
                                 >
                                   {isLoading ? '…' : 'Accept'}
@@ -313,11 +350,18 @@ export default function AppLayout() {
                                   onClick={() => handleReject(req.id)}
                                   disabled={isLoading}
                                   style={{
-                                    flex: 1, padding: '7px 0', borderRadius: 999,
+                                    flex: 1,
+                                    padding: '7px 0',
+                                    borderRadius: 999,
                                     border: '1.5px solid var(--color-border-strong)',
-                                    background: 'var(--color-surface)', color: 'var(--color-ink-secondary)',
-                                    fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
-                                    cursor: isLoading ? 'wait' : 'pointer', opacity: isLoading ? 0.6 : 1,
+                                    background: 'var(--color-surface)',
+                                    color: 'var(--color-ink-secondary)',
+                                    fontFamily: 'var(--font-body)',
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    cursor: isLoading ? 'wait' : 'pointer',
+                                    opacity: isLoading ? 0.6 : 1,
+                                    transition: 'opacity 0.15s',
                                   }}
                                 >
                                   Reject
@@ -337,10 +381,18 @@ export default function AppLayout() {
                 to="/profile"
                 id="nav-profile-avatar"
                 style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: 28, height: 28, borderRadius: 'var(--radius-full)',
-                  backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)',
-                  fontSize: 12, fontWeight: 600, textDecoration: 'none', flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 28,
+                  height: 28,
+                  borderRadius: 'var(--radius-full)',
+                  backgroundColor: 'var(--color-primary)',
+                  color: 'var(--color-on-primary)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  flexShrink: 0,
                 }}
                 aria-label="Your profile"
               >
@@ -363,7 +415,10 @@ export default function AppLayout() {
       {/* ------------------------------------------------------------------ */}
       {/* Page content                                                        */}
       {/* ------------------------------------------------------------------ */}
-      <main role="main" style={{ flex: 1, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <main
+        role="main"
+        style={{ flex: 1, paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         <Outlet />
       </main>
 
@@ -375,7 +430,11 @@ export default function AppLayout() {
         aria-label="Mobile navigation"
         className="mobile-bottom-nav"
         style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
           backgroundColor: 'var(--color-surface-dark)',
           borderTop: '1px solid rgba(255,255,255,0.08)',
           display: 'flex',
@@ -389,12 +448,18 @@ export default function AppLayout() {
             end={to === '/'}
             id={`mobile-${id}`}
             style={({ isActive }) => ({
-              flex: 1, display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
               padding: '8px 4px 10px',
               color: isActive ? 'var(--color-accent-strong)' : 'rgba(255,255,255,0.5)',
-              textDecoration: 'none', fontSize: 10, fontWeight: isActive ? 600 : 400,
-              gap: 2, transition: 'color 0.15s ease',
+              textDecoration: 'none',
+              fontSize: 10,
+              fontWeight: isActive ? 600 : 400,
+              gap: 2,
+              transition: 'color 0.15s ease',
             })}
           >
             <span aria-hidden="true" style={{ fontSize: 20, lineHeight: 1 }}>
@@ -418,7 +483,7 @@ export default function AppLayout() {
 
         @keyframes ping-dot {
           0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.45); opacity: 0.6; }
+          50% { transform: scale(1.45); opacity: 0.65; }
         }
       `}</style>
     </div>
