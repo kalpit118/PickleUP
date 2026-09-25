@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { friendsService } from '@/services/friends'
 import { matchesService } from '@/services/matches'
+import { trustService } from '@/services/trust'
+import { confirmationsService } from '@/services/confirmations'
 import type { Profile } from '@/types/domain'
 
 export default function RecordMatchPage() {
@@ -93,18 +95,42 @@ export default function RecordMatchPage() {
         { match_id: match.id, player_id: opponent1Id, team: 'B' }
       ]
       
+      // Opponents who need to confirm (everyone except the submitter)
+      const opponentIds: string[] = [opponent1Id]
+      
       if (format === 'doubles') {
         matchPlayers.push({ match_id: match.id, player_id: partnerId, team: 'A' })
         matchPlayers.push({ match_id: match.id, player_id: opponent2Id, team: 'B' })
+        opponentIds.push(opponent2Id)
+        // Partner is on our team but still needs to confirm
+        opponentIds.push(partnerId)
       }
       
       await matchesService.addMatchPlayers(matchPlayers as any)
       
-      // 3. Submit score
+      // 3. Submit score — transitions DRAFT → SUBMITTED
       await matchesService.submitScore(match.id, Number(scoreA), Number(scoreB), user.id)
       
-      // Success!
-      navigate('/')
+      // 4. Check trust: which of the opponents trust the submitter?
+      //    If ALL opponents trust the submitter, auto-verify immediately.
+      const allConfirmingPlayers = opponentIds.filter(id => id !== user.id)
+      const trustedOpponentIds = await trustService.getOpponentsTrustingSubmitter(
+        allConfirmingPlayers,
+        user.id
+      )
+      
+      const allTrust = trustedOpponentIds.length === allConfirmingPlayers.length && allConfirmingPlayers.length > 0
+      
+      if (allTrust) {
+        // Everyone trusts the submitter — auto-verify
+        await matchesService.verifyMatch(match.id)
+        navigate('/', { state: { toast: 'Match verified! Stats updated.' } })
+      } else {
+        // Create confirmation requests for opponents who don't have auto-trust
+        const needsConfirmation = allConfirmingPlayers.filter(id => !trustedOpponentIds.includes(id))
+        await confirmationsService.createConfirmations(match.id, needsConfirmation)
+        navigate('/', { state: { toast: 'Score submitted! Waiting for opponents to confirm.' } })
+      }
     } catch (err: any) {
       console.error(err)
       setError(err.message || 'Failed to record match.')

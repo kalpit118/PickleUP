@@ -1,11 +1,12 @@
 /**
  * FriendsPage — Phase 3 Social hub.
- * Search players, manage friend requests, and view friends list.
+ * Search players, manage friend requests, view friends list, and manage trust.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { friendsService } from '@/services/friends'
 import { playersService } from '@/services/players'
+import { trustService } from '@/services/trust'
 import type { Profile } from '@/types/domain'
 
 export default function FriendsPage() {
@@ -16,8 +17,14 @@ export default function FriendsPage() {
   const [requests, setRequests] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Profile[]>([])
+  const [trustedIds, setTrustedIds] = useState<string[]>([])
   
   const [loading, setLoading] = useState(true)
+
+  // 3-dot menu open state: friendshipId -> boolean
+  const [menuOpen, setMenuOpen] = useState<string | null>(null)
+  const [trustLoading, setTrustLoading] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   // Fetch initial data
   useEffect(() => {
@@ -26,13 +33,15 @@ export default function FriendsPage() {
 
     async function load() {
       try {
-        const [friendsData, requestsData] = await Promise.all([
+        const [friendsData, requestsData, trustedData] = await Promise.all([
           friendsService.getFriends(user!.id),
-          friendsService.getPendingRequests(user!.id)
+          friendsService.getPendingRequests(user!.id),
+          trustService.getTrustedIds(user!.id),
         ])
         if (mounted) {
           setFriends(friendsData)
           setRequests(requestsData)
+          setTrustedIds(trustedData)
         }
       } catch (err) {
         console.error('Failed to load friends:', err)
@@ -45,6 +54,18 @@ export default function FriendsPage() {
     return () => { mounted = false }
   }, [user])
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!menuOpen) return
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [menuOpen])
+
   // Handle Search
   useEffect(() => {
     if (!searchQuery.trim() || !user) {
@@ -55,12 +76,11 @@ export default function FriendsPage() {
     const delay = setTimeout(async () => {
       try {
         const results = await playersService.searchProfiles(searchQuery)
-        // Filter out ourselves
         setSearchResults(results.filter(p => p.id !== user.id))
       } catch (err) {
         console.error('Search failed:', err)
       }
-    }, 300) // debounce
+    }, 300)
     
     return () => clearTimeout(delay)
   }, [searchQuery, user])
@@ -80,9 +100,7 @@ export default function FriendsPage() {
   async function handleAccept(id: string) {
     try {
       await friendsService.acceptRequest(id)
-      // Optimistic update
       setRequests(r => r.filter(req => req.id !== id))
-      // Refetch to put them in the friends list (simplest approach for now)
       if (user) {
         const updatedFriends = await friendsService.getFriends(user.id)
         setFriends(updatedFriends)
@@ -99,6 +117,32 @@ export default function FriendsPage() {
     } catch (err) {
       alert('Failed to reject')
     }
+  }
+
+  async function handleGrantTrust(friendProfileId: string) {
+    if (!user) return
+    setTrustLoading(friendProfileId)
+    setMenuOpen(null)
+    try {
+      await trustService.grantTrust(user.id, friendProfileId)
+      setTrustedIds(ids => [...ids, friendProfileId])
+    } catch (err: any) {
+      alert(err.message || 'Failed to grant trust')
+    }
+    setTrustLoading(null)
+  }
+
+  async function handleRevokeTrust(friendProfileId: string) {
+    if (!user) return
+    setTrustLoading(friendProfileId)
+    setMenuOpen(null)
+    try {
+      await trustService.revokeTrust(user.id, friendProfileId)
+      setTrustedIds(ids => ids.filter(id => id !== friendProfileId))
+    } catch (err: any) {
+      alert(err.message || 'Failed to revoke trust')
+    }
+    setTrustLoading(null)
   }
 
   if (loading) {
@@ -179,18 +223,60 @@ export default function FriendsPage() {
         ) : (
           <ul style={styles.list}>
             {friends.map(f => {
-              // The friend is whichever profile is NOT the current user
               const friendProfile = f.requester_id === user?.id ? f.receiver : f.requester
               if (!friendProfile) return null
               
+              const isTrusted = trustedIds.includes(friendProfile.id)
+              const isLoading = trustLoading === friendProfile.id
+              const isMenuOpen = menuOpen === f.id
+
               return (
                 <li key={f.id} className="card" style={styles.listItem}>
                   <div style={styles.avatarSmall}>{friendProfile.name.charAt(0).toUpperCase()}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={styles.playerName}>{friendProfile.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={styles.playerName}>{friendProfile.name}</div>
+                      {isTrusted && (
+                        <span style={styles.trustedBadge}>✓ Trusted</span>
+                      )}
+                    </div>
                     <div style={styles.playerMeta}>{friendProfile.city || 'No city'}</div>
                   </div>
-                  <button className="btn-secondary" style={styles.smallBtn}>Profile</button>
+
+                  {/* 3-dot menu */}
+                  <div style={{ position: 'relative' }} ref={isMenuOpen ? menuRef : undefined}>
+                    <button
+                      type="button"
+                      onClick={() => setMenuOpen(isMenuOpen ? null : f.id)}
+                      disabled={isLoading}
+                      style={styles.dotsBtn}
+                      aria-label="Friend options"
+                    >
+                      {isLoading ? '…' : '⋮'}
+                    </button>
+
+                    {isMenuOpen && (
+                      <div style={styles.dropdownMenu}>
+                        {isTrusted ? (
+                          <button
+                            type="button"
+                            style={styles.dropdownItem}
+                            onClick={() => handleRevokeTrust(friendProfile.id)}
+                          >
+                            🔒 Revoke Score Trust
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            style={styles.dropdownItem}
+                            onClick={() => handleGrantTrust(friendProfile.id)}
+                          >
+                            🤝 Trust Their Scores
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </li>
               )
             })}
@@ -240,6 +326,7 @@ const styles = {
     alignItems: 'center',
     padding: '16px',
     gap: 16,
+    position: 'relative',
   } as React.CSSProperties,
 
   avatarSmall: {
@@ -273,5 +360,57 @@ const styles = {
     padding: '6px 12px',
     minHeight: 32,
     fontSize: 13,
+  } as React.CSSProperties,
+
+  trustedBadge: {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--color-primary)',
+    background: 'var(--color-primary-soft)',
+    borderRadius: 999,
+    padding: '2px 7px',
+  } as React.CSSProperties,
+
+  dotsBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: '50%',
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    fontSize: 20,
+    color: 'var(--color-ink-muted)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.15s',
+  } as React.CSSProperties,
+
+  dropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    zIndex: 200,
+    background: 'var(--color-surface)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 10,
+    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+    minWidth: 200,
+    overflow: 'hidden',
+  } as React.CSSProperties,
+
+  dropdownItem: {
+    width: '100%',
+    padding: '12px 16px',
+    border: 'none',
+    background: 'transparent',
+    fontFamily: 'var(--font-body)',
+    fontSize: 14,
+    color: 'var(--color-ink)',
+    textAlign: 'left',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
   } as React.CSSProperties,
 }

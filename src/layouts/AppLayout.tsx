@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { friendsService } from '@/services/friends'
+import { confirmationsService } from '@/services/confirmations'
 
 // Nav items for authenticated users
 const NAV_ITEMS = [
@@ -35,26 +36,53 @@ function timeAgo(isoString: string): string {
   return `${hours}h ${mins}m ago`
 }
 
+/** Describe a match score clearly for a notification. */
+function matchDescription(confirmation: any): string {
+  const match = confirmation.matches
+  if (!match) return 'Match score'
+  return `Score: ${match.score_team_a} – ${match.score_team_b}`
+}
+
+/** Get the submitter's name from match_players array. */
+function submitterName(confirmation: any): string {
+  const match = confirmation.matches
+  if (!match?.match_players) return 'A player'
+  const submitterId = match.submitted_by
+  const player = match.match_players.find((mp: any) => mp.player_id === submitterId)
+  return player?.profiles?.name ?? 'A player'
+}
+
 export default function AppLayout() {
   const { user, profile } = useAuth()
-  const [pendingRequests, setPendingRequests] = useState<any[]>([])
+
+  // Notifications state — two categories
+  const [pendingFriendReqs, setPendingFriendReqs] = useState<any[]>([])
+  const [pendingMatchConfs, setPendingMatchConfs] = useState<any[]>([])
+
   const [panelOpen, setPanelOpen] = useState(false)
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [friendActionLoading, setFriendActionLoading] = useState<string | null>(null)
+  const [matchActionLoading, setMatchActionLoading] = useState<string | null>(null)
   const bellRef = useRef<HTMLDivElement>(null)
 
-  const hasUnread = pendingRequests.length > 0
+  const totalUnread = pendingFriendReqs.length + pendingMatchConfs.length
+  const hasUnread = totalUnread > 0
 
-  // Load pending friend requests
+  // Load all notifications
   const loadNotifications = () => {
     if (!user) return
-    friendsService.getPendingRequests(user.id)
-      .then(reqs => setPendingRequests(reqs))
+    Promise.all([
+      friendsService.getPendingRequests(user.id),
+      confirmationsService.getPendingForPlayer(user.id),
+    ])
+      .then(([friendReqs, matchConfs]) => {
+        setPendingFriendReqs(friendReqs)
+        setPendingMatchConfs(matchConfs)
+      })
       .catch(console.error)
   }
 
   useEffect(() => {
     loadNotifications()
-    // Refresh every 30 seconds while the app is open
     const interval = setInterval(loadNotifications, 30_000)
     return () => clearInterval(interval)
   }, [user])
@@ -71,22 +99,42 @@ export default function AppLayout() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [panelOpen])
 
-  const handleAccept = async (id: string) => {
-    setActionLoading(id)
+  // Friend request actions
+  const handleAcceptFriend = async (id: string) => {
+    setFriendActionLoading(id)
     try {
       await friendsService.acceptRequest(id)
-      setPendingRequests(r => r.filter(req => req.id !== id))
+      setPendingFriendReqs(r => r.filter(req => req.id !== id))
     } catch { /* noop */ }
-    setActionLoading(null)
+    setFriendActionLoading(null)
   }
 
-  const handleReject = async (id: string) => {
-    setActionLoading(id)
+  const handleRejectFriend = async (id: string) => {
+    setFriendActionLoading(id)
     try {
       await friendsService.rejectRequest(id)
-      setPendingRequests(r => r.filter(req => req.id !== id))
+      setPendingFriendReqs(r => r.filter(req => req.id !== id))
     } catch { /* noop */ }
-    setActionLoading(null)
+    setFriendActionLoading(null)
+  }
+
+  // Match confirmation actions
+  const handleAcceptMatch = async (confirmId: string, matchId: string) => {
+    setMatchActionLoading(confirmId)
+    try {
+      await confirmationsService.acceptConfirmation(confirmId, matchId)
+      setPendingMatchConfs(c => c.filter(conf => conf.id !== confirmId))
+    } catch { /* noop */ }
+    setMatchActionLoading(null)
+  }
+
+  const handleRejectMatch = async (confirmId: string, matchId: string) => {
+    setMatchActionLoading(confirmId)
+    try {
+      await confirmationsService.rejectConfirmation(confirmId, matchId)
+      setPendingMatchConfs(c => c.filter(conf => conf.id !== confirmId))
+    } catch { /* noop */ }
+    setMatchActionLoading(null)
   }
 
   return (
@@ -130,12 +178,7 @@ export default function AppLayout() {
         <nav
           role="navigation"
           aria-label="Main navigation"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--spacing-xl)',
-            flex: 1,
-          }}
+          style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xl)', flex: 1 }}
           className="desktop-nav"
         >
           {NAV_ITEMS.map(({ to, label, id }) => (
@@ -160,7 +203,7 @@ export default function AppLayout() {
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           {user ? (
             <>
-              {/* Notification Bell + Panel */}
+              {/* ── Notification Bell + Dropdown Panel ────────────────── */}
               <div ref={bellRef} style={{ position: 'relative' }}>
                 <button
                   id="nav-notifications-bell"
@@ -173,7 +216,7 @@ export default function AppLayout() {
                     background: panelOpen ? 'rgba(255,255,255,0.08)' : 'transparent',
                     border: 'none',
                     borderRadius: '50%',
-                    color: 'rgba(255,255,255,0.72)',
+                    color: 'rgba(255,255,255,0.8)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -197,10 +240,9 @@ export default function AppLayout() {
                     />
                   </svg>
 
-                  {/* Red dot — only when there are unread notifications */}
+                  {/* Pulsing red dot — only when unread */}
                   {hasUnread && (
                     <span
-                      aria-label="Unread notifications"
                       style={{
                         position: 'absolute',
                         top: 5,
@@ -216,9 +258,7 @@ export default function AppLayout() {
                   )}
                 </button>
 
-                {/* ---------------------------------------------------- */}
-                {/* Notification Panel Dropdown                            */}
-                {/* ---------------------------------------------------- */}
+                {/* ── Notification Panel Dropdown ─────────────────────── */}
                 {panelOpen && (
                   <div
                     id="notification-panel"
@@ -228,8 +268,8 @@ export default function AppLayout() {
                       position: 'absolute',
                       top: 'calc(100% + 10px)',
                       right: 0,
-                      width: 340,
-                      maxHeight: 480,
+                      width: 360,
+                      maxHeight: 520,
                       overflowY: 'auto',
                       backgroundColor: 'var(--color-surface)',
                       borderRadius: 16,
@@ -246,29 +286,24 @@ export default function AppLayout() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
+                        position: 'sticky',
+                        top: 0,
+                        background: 'var(--color-surface)',
+                        zIndex: 1,
                       }}
                     >
                       <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, color: 'var(--color-ink)' }}>
                         Notifications
                       </span>
                       {hasUnread && (
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: 'white',
-                            background: '#EF4444',
-                            borderRadius: 999,
-                            padding: '2px 7px',
-                          }}
-                        >
-                          {pendingRequests.length} new
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'white', background: '#EF4444', borderRadius: 999, padding: '2px 7px' }}>
+                          {totalUnread} new
                         </span>
                       )}
                     </div>
 
-                    {/* Notification items */}
-                    {pendingRequests.length === 0 ? (
+                    {/* Empty state */}
+                    {!hasUnread ? (
                       <div style={{ padding: '40px 20px', textAlign: 'center' }}>
                         <div style={{ fontSize: 32, marginBottom: 10 }}>🔔</div>
                         <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--color-ink-muted)', margin: 0 }}>
@@ -277,9 +312,81 @@ export default function AppLayout() {
                       </div>
                     ) : (
                       <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                        {pendingRequests.map(req => {
+
+                        {/* ── Match Confirmation Notifications ────────── */}
+                        {pendingMatchConfs.map(conf => {
+                          const isLoading = matchActionLoading === conf.id
+                          const match = conf.matches
+                          return (
+                            <li
+                              key={conf.id}
+                              style={{
+                                padding: '14px 20px',
+                                borderBottom: '1px solid var(--color-border)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 10,
+                              }}
+                            >
+                              {/* Icon + message + time */}
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                                <div style={{
+                                  width: 38, height: 38, borderRadius: '50%',
+                                  backgroundColor: '#FEF3C7',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontSize: 18, flexShrink: 0,
+                                }}>
+                                  🏓
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--color-ink)', lineHeight: 1.4 }}>
+                                    <strong>{submitterName(conf)}</strong> recorded a match against you
+                                  </p>
+                                  <p style={{ margin: '2px 0', fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-ink)', fontWeight: 600 }}>
+                                    {matchDescription(conf)}
+                                  </p>
+                                  <p style={{ margin: '2px 0 0', fontFamily: 'var(--font-body)', fontSize: 12, color: 'var(--color-ink-muted)' }}>
+                                    {timeAgo(conf.created_at)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Accept / Reject */}
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button
+                                  onClick={() => handleAcceptMatch(conf.id, conf.match_id)}
+                                  disabled={isLoading}
+                                  style={{
+                                    flex: 1, padding: '7px 0', borderRadius: 999, border: 'none',
+                                    background: 'var(--color-primary)', color: 'white',
+                                    fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                                    cursor: isLoading ? 'wait' : 'pointer', opacity: isLoading ? 0.6 : 1,
+                                  }}
+                                >
+                                  {isLoading ? '…' : 'Accept Match'}
+                                </button>
+                                <button
+                                  onClick={() => handleRejectMatch(conf.id, conf.match_id)}
+                                  disabled={isLoading}
+                                  style={{
+                                    flex: 1, padding: '7px 0', borderRadius: 999,
+                                    border: '1.5px solid var(--color-border-strong)',
+                                    background: 'var(--color-surface)', color: 'var(--color-ink-secondary)',
+                                    fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                                    cursor: isLoading ? 'wait' : 'pointer', opacity: isLoading ? 0.6 : 1,
+                                  }}
+                                >
+                                  Dispute
+                                </button>
+                              </div>
+                            </li>
+                          )
+                        })}
+
+                        {/* ── Friend Request Notifications ─────────────── */}
+                        {pendingFriendReqs.map(req => {
                           const sender = req.requester
-                          const isLoading = actionLoading === req.id
+                          const isLoading = friendActionLoading === req.id
                           return (
                             <li
                               key={req.id}
@@ -289,31 +396,18 @@ export default function AppLayout() {
                                 display: 'flex',
                                 flexDirection: 'column',
                                 gap: 10,
-                                background: 'var(--color-surface-soft)',
                               }}
                             >
-                              {/* Row 1: avatar + text + time */}
                               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                                {/* Avatar */}
-                                <div
-                                  style={{
-                                    width: 38,
-                                    height: 38,
-                                    borderRadius: '50%',
-                                    backgroundColor: 'var(--color-primary-soft)',
-                                    color: 'var(--color-primary)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: 15,
-                                    fontWeight: 700,
-                                    flexShrink: 0,
-                                  }}
-                                >
+                                <div style={{
+                                  width: 38, height: 38, borderRadius: '50%',
+                                  backgroundColor: 'var(--color-primary-soft)',
+                                  color: 'var(--color-primary)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontSize: 15, fontWeight: 700, flexShrink: 0,
+                                }}>
                                   {sender?.name?.[0]?.toUpperCase() ?? '?'}
                                 </div>
-
-                                {/* Text */}
                                 <div style={{ flex: 1 }}>
                                   <p style={{ margin: 0, fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--color-ink)', lineHeight: 1.4 }}>
                                     <strong>{sender?.name ?? 'Someone'}</strong> sent you a friend request
@@ -324,47 +418,31 @@ export default function AppLayout() {
                                 </div>
                               </div>
 
-                              {/* Row 2: Accept / Reject buttons */}
                               <div style={{ display: 'flex', gap: 8 }}>
                                 <button
-                                  onClick={() => handleAccept(req.id)}
+                                  onClick={() => handleAcceptFriend(req.id)}
                                   disabled={isLoading}
                                   style={{
-                                    flex: 1,
-                                    padding: '7px 0',
-                                    borderRadius: 999,
-                                    border: 'none',
-                                    background: 'var(--color-primary)',
-                                    color: 'white',
-                                    fontFamily: 'var(--font-body)',
-                                    fontSize: 13,
-                                    fontWeight: 600,
-                                    cursor: isLoading ? 'wait' : 'pointer',
-                                    opacity: isLoading ? 0.6 : 1,
-                                    transition: 'opacity 0.15s',
+                                    flex: 1, padding: '7px 0', borderRadius: 999, border: 'none',
+                                    background: 'var(--color-primary)', color: 'white',
+                                    fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                                    cursor: isLoading ? 'wait' : 'pointer', opacity: isLoading ? 0.6 : 1,
                                   }}
                                 >
                                   {isLoading ? '…' : 'Accept'}
                                 </button>
                                 <button
-                                  onClick={() => handleReject(req.id)}
+                                  onClick={() => handleRejectFriend(req.id)}
                                   disabled={isLoading}
                                   style={{
-                                    flex: 1,
-                                    padding: '7px 0',
-                                    borderRadius: 999,
+                                    flex: 1, padding: '7px 0', borderRadius: 999,
                                     border: '1.5px solid var(--color-border-strong)',
-                                    background: 'var(--color-surface)',
-                                    color: 'var(--color-ink-secondary)',
-                                    fontFamily: 'var(--font-body)',
-                                    fontSize: 13,
-                                    fontWeight: 600,
-                                    cursor: isLoading ? 'wait' : 'pointer',
-                                    opacity: isLoading ? 0.6 : 1,
-                                    transition: 'opacity 0.15s',
+                                    background: 'var(--color-surface)', color: 'var(--color-ink-secondary)',
+                                    fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600,
+                                    cursor: isLoading ? 'wait' : 'pointer', opacity: isLoading ? 0.6 : 1,
                                   }}
                                 >
-                                  Reject
+                                  Decline
                                 </button>
                               </div>
                             </li>
@@ -381,18 +459,10 @@ export default function AppLayout() {
                 to="/profile"
                 id="nav-profile-avatar"
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 28,
-                  height: 28,
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor: 'var(--color-primary)',
-                  color: 'var(--color-on-primary)',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 28, height: 28, borderRadius: 'var(--radius-full)',
+                  backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)',
+                  fontSize: 12, fontWeight: 600, textDecoration: 'none', flexShrink: 0,
                 }}
                 aria-label="Your profile"
               >
@@ -415,10 +485,7 @@ export default function AppLayout() {
       {/* ------------------------------------------------------------------ */}
       {/* Page content                                                        */}
       {/* ------------------------------------------------------------------ */}
-      <main
-        role="main"
-        style={{ flex: 1, paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
+      <main role="main" style={{ flex: 1, paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <Outlet />
       </main>
 
@@ -430,11 +497,7 @@ export default function AppLayout() {
         aria-label="Mobile navigation"
         className="mobile-bottom-nav"
         style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 100,
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
           backgroundColor: 'var(--color-surface-dark)',
           borderTop: '1px solid rgba(255,255,255,0.08)',
           display: 'flex',
@@ -448,18 +511,12 @@ export default function AppLayout() {
             end={to === '/'}
             id={`mobile-${id}`}
             style={({ isActive }) => ({
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
+              flex: 1, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
               padding: '8px 4px 10px',
               color: isActive ? 'var(--color-accent-strong)' : 'rgba(255,255,255,0.5)',
-              textDecoration: 'none',
-              fontSize: 10,
-              fontWeight: isActive ? 600 : 400,
-              gap: 2,
-              transition: 'color 0.15s ease',
+              textDecoration: 'none', fontSize: 10, fontWeight: isActive ? 600 : 400,
+              gap: 2, transition: 'color 0.15s ease',
             })}
           >
             <span aria-hidden="true" style={{ fontSize: 20, lineHeight: 1 }}>
@@ -483,7 +540,7 @@ export default function AppLayout() {
 
         @keyframes ping-dot {
           0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.45); opacity: 0.65; }
+          50% { transform: scale(1.45); opacity: 0.6; }
         }
       `}</style>
     </div>
