@@ -88,7 +88,7 @@ export default function LoginPage() {
     return (
       <div style={styles.page}>
         <div style={styles.card}>
-          <div style={styles.logoMark} aria-hidden="true">🏓</div>
+          <img src="/logo.svg" alt="PickleUP" style={styles.logoMark} />
           <h1 style={styles.heading}>Check your email</h1>
           <p style={styles.subtext}>
             We sent a confirmation link to <strong>{email}</strong>.
@@ -117,9 +117,7 @@ export default function LoginPage() {
 
         {/* Logo mark + wordmark */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={styles.logoMark} aria-hidden="true">🏓</div>
-          <h1 style={styles.wordmark}>PickleUP</h1>
-          <p style={styles.tagline}>Play. Score. Compete. Improve.</p>
+          <img src="/logo.svg" alt="PickleUP" style={styles.logoMark} />
         </div>
 
         {/* Tab switcher */}
@@ -286,11 +284,10 @@ const styles = {
   } as React.CSSProperties,
 
   logoMark: {
-    fontSize: 40,
     display: 'block',
-    textAlign: 'center',
-    marginBottom: 8,
-    lineHeight: 1,
+    width: 180,
+    height: 'auto',
+    margin: '0 auto 8px',
   } as React.CSSProperties,
 
   wordmark: {

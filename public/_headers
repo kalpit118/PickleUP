@@ -1,0 +1,28 @@
+# Cloudflare Pages custom headers
+
+# Service Worker — must be served with no-cache and correct MIME type
+/sw.js
+  Content-Type: application/javascript
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+
+# Workbox runtime
+/workbox-*.js
+  Content-Type: application/javascript
+  Cache-Control: public, max-age=31536000, immutable
+
+# Web App Manifest — must be served as application/manifest+json
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+  Cache-Control: no-cache
+
+# PWA Icons — long-lived cache
+/icons/*
+  Cache-Control: public, max-age=86400
+
+# Default HTML — no cache for SPA root
+/
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
