@@ -45,25 +45,11 @@ export default defineConfig({
           { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
-        // Cache all essential assets for offline use
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
-        // SPA fallback — serve index.html for all navigation
-        navigateFallback: 'index.html',
-        // Don't fallback to index.html for API/edge calls
-        navigateFallbackDenylist: [
-          /^\/api\//,
-          /^\/rest\//,
-          /^\/auth\//,
-        ],
-        runtimeCaching: [
-          {
-            // Never cache Supabase API requests — always go to network
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkOnly',
-          },
-        ],
-        cleanupOutdatedCaches: true,
       },
       devOptions: {
         enabled: false,

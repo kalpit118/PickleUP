@@ -7,13 +7,15 @@
 import { useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { authService } from '@/services/auth'
 import { playersService } from '@/services/players'
 import type { SkillLevel } from '@/types/domain'
 
 export default function ProfilePage() {
   const { id } = useParams()
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, profile, refreshProfile, session } = useAuth()
+  const pushNotify = usePushNotifications(session)
   
   // If viewing own profile, id param is undefined
   const isOwnProfile = !id || id === user?.id
@@ -156,7 +158,25 @@ export default function ProfilePage() {
 
       {/* Settings / Actions */}
       <section style={styles.section}>
-        <h3 style={styles.sectionTitle}>Account</h3>
+        <h3 style={styles.sectionTitle}>Account Settings</h3>
+        
+        {pushNotify.isSupported && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, padding: '16px', background: 'var(--color-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border-strong)' }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 15, marginBottom: 4, color: 'var(--color-ink)' }}>Push Notifications</div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--color-ink-muted)' }}>Get alerts for friend requests & match invites</div>
+            </div>
+            <button 
+              type="button"
+              onClick={() => pushNotify.isSubscribed ? pushNotify.unsubscribe() : pushNotify.subscribe()}
+              className={pushNotify.isSubscribed ? "btn-secondary" : "btn-primary"}
+              style={{ padding: '8px 16px', fontSize: 14, minHeight: 'auto', minWidth: 80 }}
+            >
+              {pushNotify.isSubscribed ? 'Disable' : 'Enable'}
+            </button>
+          </div>
+        )}
+
         <button onClick={handleSignOut} style={styles.dangerButton}>
           Sign out
         </button>
