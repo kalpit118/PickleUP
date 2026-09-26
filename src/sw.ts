@@ -39,10 +39,8 @@ self.addEventListener('push', (event) => {
       self.registration.showNotification(payload.title, {
         body: payload.body,
         icon: '/icons/icon-192x192.png',
-        vibrate: [200, 100, 200],
         data: payload.data || {},
         actions: payload.actions || [],
-        requireInteraction: true,
       } as any)
     )
   } catch (err) {
