@@ -16,6 +16,37 @@ export const friendsService = {
       .single()
 
     if (error) throw error
+
+    // Fetch requester profile for the notification title/body
+    const { data: profile } = await supabase.from('profiles').select('name').eq('id', requesterId).single()
+    const requesterName = profile?.name || 'Someone'
+
+    // Trigger push notification via Edge Function (fire and forget)
+    supabase.functions.invoke('push-notifications', {
+      body: {
+        target_user_id: receiverId,
+        title: 'New Friend Request',
+        body: `${requesterName} sent you a friend request!`,
+        actions: [
+          { action: 'accept', title: 'Accept' },
+          { action: 'reject', title: 'Reject' }
+        ],
+        data: {
+          url: '/friends', // clicking body opens friends page
+          actionUrl: `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/friendships?id=eq.${data.id}`,
+          method: 'PATCH',
+          headers: {
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'Prefer': 'return=minimal'
+          },
+          actionBodyMap: {
+            accept: { status: 'accepted' },
+            reject: { status: 'rejected' }
+          }
+        }
+      }
+    }).catch(err => console.error('Failed to trigger push notification:', err))
+
     return data as Friendship
   },
 

@@ -84,13 +84,19 @@ self.addEventListener('notificationclick', (event) => {
             return self.clients.openWindow(data.url || '/')
           }
           
+          let bodyObj = data.bodyPayload || { action, ...data }
+          if (data.actionBodyMap && data.actionBodyMap[action]) {
+            bodyObj = data.actionBodyMap[action]
+          }
+
           await fetch(data.actionUrl, {
-            method: 'POST',
+            method: data.method || 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
+              'Authorization': `Bearer ${token}`,
+              ...(data.headers || {})
             },
-            body: JSON.stringify({ action, ...data })
+            body: JSON.stringify(bodyObj)
           })
 
           // Optionally, notify open clients to refresh data
