@@ -39,8 +39,7 @@ self.addEventListener('push', (event) => {
       self.registration.showNotification(payload.title, {
         body: payload.body,
         icon: '/icons/icon-192x192.png',
-        badge: '/icons/icon-96x96.png', // Android requires PNG for badge, SVG will crash it silently
-        vibrate: [200, 100, 200], // Android vibration pattern
+        vibrate: [200, 100, 200],
         data: payload.data || {},
         actions: payload.actions || [],
         requireInteraction: true,
