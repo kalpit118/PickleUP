@@ -21,11 +21,32 @@ export const confirmationsService = {
       status: 'pending',
     }))
 
-    const { error } = await supabase
+    const { data: inserted, error } = await supabase
       .from('match_confirmations')
       .insert(rows)
+      .select('id, player_id')
 
     if (error) throw error
+
+    // Fetch the submitter's name (the current user)
+    const { data: { user } } = await supabase.auth.getUser()
+    const submitterName = user?.user_metadata?.name || 'A player'
+
+    // Send push notifications to opponents
+    if (inserted) {
+      inserted.forEach((conf) => {
+        supabase.functions.invoke('push-notifications', {
+          body: {
+            target_user_id: conf.player_id,
+            title: 'Match Score Submitted',
+            body: `${submitterName} recorded a match you played in. Tap to confirm the score!`,
+            data: {
+              url: '/analytics', // Currently match history is on Analytics/Profile
+            }
+          }
+        }).catch(err => console.error('Failed to send match push:', err))
+      })
+    }
   },
 
   /**
