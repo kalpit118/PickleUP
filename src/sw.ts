@@ -43,7 +43,7 @@ self.addEventListener('push', (event) => {
         data: payload.data || {},
         actions: payload.actions || [],
         requireInteraction: true,
-      })
+      } as any)
     )
   } catch (err) {
     console.error('[SW] Error parsing push data', err)
@@ -81,7 +81,7 @@ self.addEventListener('notificationclick', (event) => {
           const token = await getAccessToken()
           if (!token) {
             // Fallback: open app if no token is available for background request
-            return clients.openWindow(data.url || '/')
+            return self.clients.openWindow(data.url || '/')
           }
           
           await fetch(data.actionUrl, {
@@ -94,28 +94,28 @@ self.addEventListener('notificationclick', (event) => {
           })
 
           // Optionally, notify open clients to refresh data
-          const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true })
+          const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
           for (const client of windowClients) {
             client.postMessage({ type: 'PUSH_ACTION_COMPLETED', action, data })
           }
         } catch (err) {
           console.error('[SW] Action failed in background', err)
           // Fallback to opening the app on failure
-          clients.openWindow(data.url || '/')
+          self.clients.openWindow(data.url || '/')
         }
       })()
     )
   } else {
     // Normal click on notification body — focus existing window or open new one
     event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients: any) => {
         for (const client of windowClients) {
           if (client.url.includes(self.registration.scope) && 'focus' in client) {
             client.postMessage({ type: 'NOTIFICATION_CLICKED', data })
             return client.focus()
           }
         }
-        return clients.openWindow(data.url || '/')
+        return self.clients.openWindow(data.url || '/')
       })
     )
   }
