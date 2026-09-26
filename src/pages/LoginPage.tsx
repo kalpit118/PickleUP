@@ -65,7 +65,13 @@ export default function LoginPage() {
       await authService.signUp(email.trim(), password)
       setSignupDone(true)
     } catch (err) {
-      setError(friendlyAuthError(err))
+      const msg = friendlyAuthError(err)
+      if (msg === 'An account with this email already exists.') {
+        setTab('signin')
+        setError('You already have an account. Please sign in instead.')
+      } else {
+        setError(msg)
+      }
     } finally {
       setSubmitting(false)
     }
