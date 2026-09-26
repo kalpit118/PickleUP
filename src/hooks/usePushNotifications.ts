@@ -49,6 +49,10 @@ export function usePushNotifications(session: any) {
 
       const registration = await navigator.serviceWorker.ready
       const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+      if (!vapidPublicKey) {
+        alert('Error: VITE_VAPID_PUBLIC_KEY is missing from environment variables!')
+        return false
+      }
       
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -66,13 +70,15 @@ export function usePushNotifications(session: any) {
 
       if (error) {
         console.error('Failed to save push subscription to DB:', error)
+        alert(`DB Save Error: ${error.message}`)
         return false
       }
 
       setIsSubscribed(true)
       return true
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to subscribe to push notifications:', err)
+      alert(`Push Subscribe Error: ${err?.message || 'Check console'}`)
       return false
     }
   }, [isSupported, session?.user?.id])
