@@ -137,24 +137,12 @@ flowchart TD
 
 ## 🧮 PickleRank™ Rating Algorithm
 
-PickleUP uses an Elo-derived rating formulation specifically tuned to the scoring distributions of pickleball.
+PickleUP uses an Elo-derived rating system specifically tuned to the scoring distributions and dynamics of pickleball.
 
-### 1. Expected Outcome Probability
-For two players (or doubles team averages) with ratings $R_A$ and $R_B$:
-
-$$E_A = \frac{1}{1 + 10^{\frac{R_B - R_A}{1.0}}}$$
-
-$$\text{Where } E_B = 1 - E_A$$
-
-### 2. Margin-of-Victory Soft Multiplier
-Unlike basic chess Elo, pickleball match scores carry vital signal. PickleUP applies a logarithmic margin multiplier with a soft cap to prevent runaway blowouts from skewing ratings:
-
-$$M = \frac{\ln(|Score_A - Score_B| + 1)}{2}$$
-
-### 3. Rating Adjustment
-$$\Delta R_A = K \cdot M \cdot (Actual_A - E_A)$$
-
-$$\text{Where } K = 0.10 \text{ (base factor) and } Actual_A \in \{0, 1\}$$
+- **Matchup Expectation:** Prior to every game, expected win probability is calculated based on the relative ratings of both competitors (or the averaged rating of doubles pairs).
+- **Margin-of-Victory Scaling:** Unlike traditional chess Elo, pickleball scorelines carry crucial signal. Decisive wins provide a higher rating impact, balanced with a soft logarithmic curve to prevent runaway blowouts from distorting standings.
+- **Fair Doubles Distribution:** For doubles matches, rating adjustments apply symmetrically across teammates, rewarding cooperative synergy and balanced play.
+- **Dynamic Post-Match Adjustments:** Ratings update immediately upon match verification, giving players a reliable, responsive reflection of their competitive progression.
 
 > [!NOTE]
 > **Integrity Policy:** In compliance with our platform principles, PickleRank™ is an internal, transparent community metric. It never claims official equivalence to DUPR, ensuring full transparency with players.
